@@ -1,7 +1,7 @@
 /*
  * usart.h
  *
- *  Created on: 14 мая 2025 г.
+ *  Created on: 22 мая 2025 г.
  *      Author: mrbru
  */
 
@@ -9,21 +9,38 @@
 #define USART_H_
 
 #include "stm32f4xx.h"
+#include "adc.h"
 
-#define ERROR -1
-#define OK 0
-#define COMMAND_UNKNOWN "invalid "
-#define COMMAND_ACCEPTED "OK "
-#define DONE "command done "
+#define start 0xCA
+#define YES 1
+#define NO 0
+#define SIZE 128
 
-void init_USART();
+
+
+struct RingedBuffer{
+	uint8_t len;
+	uint8_t buffer[SIZE];
+	uint8_t begin;
+	uint8_t end;
+};
+
+void init_Buffer(struct RingedBuffer* buf, uint8_t begin, uint8_t end);
+void init_usart();
+void init_DMA(struct RingedBuffer* buf);
 void conf_GPIO();
-uint8_t read_data_USART();
-uint8_t write_data_USART(char data);
-void update_buf(uint8_t* buf, uint8_t* pos);
-void update_read_pos(uint8_t* pos);
-void analyze_command(uint8_t* buf, uint8_t* pos1, uint8_t* pos2, uint8_t* func);
+void setup_NVIC();
+uint8_t read_data();
+void write_data(uint8_t data);
+void write_command(uint8_t len, char* buf);
+void analyze_buffer(struct RingedBuffer* buf, uint8_t* func);
+void write_to_end(struct RingedBuffer* buf, uint8_t data);
+uint8_t read_from_begin(struct RingedBuffer* buf);
+uint8_t transfer_data_DMA(uint8_t tx_c, uint16_t length);
 
+void init_all(struct RingedBuffer* buf);
+
+uint8_t write_data_USART(char data);
 
 
 #endif /* USART_H_ */

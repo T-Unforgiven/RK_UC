@@ -33,17 +33,17 @@ SOFTWARE.
 #include "ADC.h"
 #include "timers.h"
 
-uint8_t buffer[32];
-uint8_t myPC_pos = 0;
-uint8_t myUC_pos = 0;
+struct RingedBuffer input_buf;
+struct RingedBuffer output_buf;
+uint8_t tx_complete = 0;
 uint8_t func = 0;
+
 
 
 void init_diodes(){
 	RCC->AHB1ENR |= RCC_AHB1ENR_GPIOAEN;
 	GPIOA->MODER |= GPIO_MODER_MODER6_0;
 	GPIOA->MODER |= GPIO_MODER_MODER7_0;
-	GPIOA->ODR &= ~GPIO_ODR_ODR_7;
 }
 
 void init_keys(){
@@ -66,8 +66,30 @@ void EXTI3_IRQHandler(){
 		GPIOA->ODR ^= GPIO_ODR_ODR_6;
 	}
 	if(func == 2){
-			GPIOA->ODR ^= GPIO_ODR_ODR_7;
-		}
+		GPIOA->ODR ^= GPIO_ODR_ODR_7;
+	}
+}
+
+void USART1_IRQHandler(){
+	if(USART1->SR & USART_SR_RXNE){
+		write_to_end(&input_buf, read_data());
+	}
+//	if(USART1->SR & USART_SR_TXE){
+//		write_data(read_from_begin(&output_buf));
+//	}
+}
+
+void DMA2_Stream7_IRQHandler(){
+	 if (DMA2->HISR & DMA_HISR_TCIF7) {
+	     DMA2->HIFCR = DMA_HIFCR_CTCIF7;
+	     tx_complete = 1;
+	 }
+}
+
+void test(struct RingedBuffer* buf){
+	for(uint8_t i = 0; i < 4; i++){
+		write_to_end(buf, i);
+	}
 }
 
 int main(void)
@@ -75,14 +97,15 @@ int main(void)
 	init_diodes();
 	init_keys();
 	init_EXTI();
-	conf_GPIO();
-	init_USART();
+	init_Buffer(&input_buf, 0, 0);
+	init_Buffer(&output_buf, 0, 0);
+	test(&output_buf);
+	init_all(&output_buf);
 	init_ADC();
-	start_timers();
-	init_GPIO_ADC();
+	//start_timers();
+	//init_GPIO_ADC();
 	while (1)
 	{
-		update_buf(buffer, &myPC_pos);
-		analyze_command(buffer, &myPC_pos,  &myUC_pos, &func);
+		analyze_buffer(&input_buf, &func);
 	}
 }
